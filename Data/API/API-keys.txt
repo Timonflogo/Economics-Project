@@ -1,0 +1,14 @@
+Climate Data:
+curl -X GET "https://dmigw.govcloud.dk/v2/climateData" -H "X-Gravitee-Api-Key: c8aae300-689f-4c9b-8609-746d0aba78ca"
+
+c8aae300-689f-4c9b-8609-746d0aba78ca
+
+https://dmigw.govcloud.dk/v2/climateData/bulk/stationValue/?api-key=c8aae300-689f-4c9b-8609-746d0aba78ca
+
+Meteorological Data:
+curl -X GET "https://dmigw.govcloud.dk/v2/metObs" -H "X-Gravitee-Api-Key: d3182f8b-381a-4e7c-968d-7b12759ce5c3"
+
+d3182f8b-381a-4e7c-968d-7b12759ce5c3
+
+copy this:
+https://dmigw.govcloud.dk/v2/metObs/bulk/?api-key=d3182f8b-381a-4e7c-968d-7b12759ce5c3
