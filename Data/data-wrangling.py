@@ -59,11 +59,27 @@ persCons = persCons[["Datetime", "Value"]]
 
 # Set Datetime as type datetime
 persCons['Datetime'] = pd.to_datetime(persCons['Datetime'], infer_datetime_format=True)
-# persCons = persCons.set_index('Datetime')
 persCons.info()
 
 # sort descending by date
 persCons.sort_values(by=['Datetime'], inplace=True, ascending=True)
+
+# drop potential duplicates
+persCons = persCons.drop_duplicates(subset=["Datetime"])
+
+persCons = persCons.set_index('Datetime')
+
+# Add additional variables for seasonality
+persCons['hour'] = persCons.index.hour
+# add day of month column 0 = first day of the month
+persCons['day_of_month'] = persCons.index.day
+# add day of week column 0 = Monday
+persCons['day_of_week'] = persCons.index.dayofweek
+# add month column
+persCons['month'] = persCons.index.month
+# add weekend column
+persCons['is_weekend'] = ((persCons.index.dayofweek) // 5 == 1).astype(float)
+
 
 ### Meteorological Observation data ----
 
@@ -79,8 +95,10 @@ metObs.info()
 # change Datetime to datetype datetime
 metObs['Time'] = pd.to_datetime(metObs['Time'], infer_datetime_format=True)
 
+metObs = metObs.rename(columns={"Time" : "Datetime"})
+
 # set Datetime as index
-# metObs = metObs.set_index('Time')
+metObs = metObs.set_index('Datetime')
 metObs.info()
 
 # check for missing data 
@@ -94,34 +112,40 @@ metObs.fillna(method='ffill', inplace = True)
 metObs.isna().sum()
 
 # sort descending by date
-metObs.sort_values(by=['Time'], inplace=True, ascending=True)
+metObs.sort_values(by=['Datetime'], inplace=True, ascending=True)
 
 # Aggregate data by hour
-metObs = metObs.groupby(metObs.Time.floor('H')).mean()
-
-# Add additional variables for seasonality
-persCons['hour'] = persCons.Time.hour
-# add day of month column 0 = first day of the month
-persCons['day_of_month'] = persCons.index.day
-# add day of week column 0 = Monday
-persCons['day_of_week'] = persCons.index.dayofweek
-# add month column
-persCons['month'] = persCons.index.month
-# add weekend column
-persCons['is_weekend'] = ((persCons.index.dayofweek) // 5 == 1).astype(float)
+metObs = metObs.groupby(metObs.index.floor('H')).mean()
+metObs.info()
 
 
-# rename Time to Datetime 
-metObs = metObs.rename(columns={"Time" : "Datetime"})
 
 ### Merge Meteorological Observation data with Personal consumption data ---
 
-df = metObs.merge(metObs, how="outer")
+# create empty dataframe with time values per hour
+date_df = pd.DataFrame()
+
+date_df = date_df.assign(Datetime = pd.date_range(start='08/1/2018', end='11/08/2021', freq="H"))
+
+# merge persCons into date_df
+df = pd.merge(date_df, persCons, on = "Datetime")
 
 df.isna().sum()
 
-df = df.iloc[1398:,:]
+# duplicate Datetime column
+df = df.assign(Datetime2 = df.Datetime)
+df = df.set_index('Datetime2')
 
+df = df.merge(metObs, how="outer", left_index=True, right_index=True)
 
+df.isna().sum()
 
+df = df.dropna()
+df.isna().sum()
+
+# save df as file
+df.to_csv("weather-energy-data.csv")
+
+# test dataset
+test = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/weather-energy-data.csv')
 
