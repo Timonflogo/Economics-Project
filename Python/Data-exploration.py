@@ -67,7 +67,11 @@ ax1 = sns.distplot(df_input['kWh'], hist = False, kde = True,
 
 ax2 = sns.boxplot(x="day_of_week", y="kWh", data=df_input, ax = axes[1])
 
-# 
+# isolate for outliers 
+df_input['kWh'][df_input["kWh"] > 0.5].count()
+         
+outliers = df_input.index[df_input["kWh"] > 1]  
+         
 
 
 # create daily, weekly, and yearly signals 
