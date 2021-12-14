@@ -24,15 +24,16 @@ register_matplotlib_converters()
 sns.set(style='whitegrid', palette='muted', font_scale=1)
 
 # set plotting parameters
-rcParams['figure.figsize'] = 22, 10
+rcParams['figure.figsize'] = 16, 6
 
 # Load data
-df_input = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv')
-df_input = df_input.iloc[:,1:]
+df_input = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
+df_input.index.freq = 'H'
+
 
 # plot heatmap
 # df_input = df_input.reset_index()
-# get correlations
+# get correlations 
 df_input_corr = df_input.corr()
 # create mask
 mask = np.triu(np.ones_like(df_input_corr, dtype=np.bool))
@@ -42,14 +43,36 @@ sns.heatmap(df_input_corr, mask=mask, annot=True, fmt=".2f", cmap='Blues',
 
 
 # inspect time series 
-sns.lineplot(x='Datetime', y='kWh', data=df_input)
+df_input['kWh'].iloc[-24:].plot(legend=True)
+
+
+# group by Hour 
+df_input.groupby(by='hour').mean()['kWh'].plot()
+
+# group by Day 
+df_input.groupby(by='day_of_week').mean()['kWh'].plot()
+
+# group by Day 
+df_input.groupby(by='day_of_month').mean()['kWh'].plot()
 
     
+# Density plot of target variabel
+fig, axes = plt.subplots(2)
+fig.suptitle('Outlier detection')
+
+ax1 = sns.distplot(df_input['kWh'], hist = False, kde = True,
+                 kde_kws = {'shade': True, 'linewidth': 3}, 
+                 ax = axes[0]
+                 )
+
+ax2 = sns.boxplot(x="day_of_week", y="kWh", data=df_input, ax = axes[1])
+
+# 
+
+
 # create daily, weekly, and yearly signals 
 # Set datetime as index
-df_input = df_input.set_index('Datetime')
-date_time = df_input.pop('Datetime')
-timestamp_s = date_time.map(datetime.datetime.timestamp)
+timestamp_s = df_input.index.map(pd.Timestamp.timestamp)
 day = 24*60*60
 week = 24*60*60*7
 year = (365.2425)*day
