@@ -1,34 +1,5 @@
-import os
-import datetime
-
-import IPython
-import IPython.display
-from pylab import rcParams
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from matplotlib import rc
-import numpy as np
 import pandas as pd
-import statsmodels.api as sm
-from pandas.plotting import register_matplotlib_converters
-import seaborn as sns
-import tensorflow as tf
 
-mpl.rcParams['figure.figsize'] = (8, 6)
-mpl.rcParams['axes.grid'] = False
-# set styles
-# set seaborn style
-register_matplotlib_converters()
-
-# set seaborn style
-sns.set(style='whitegrid', palette='muted', font_scale=1)
-
-# set plotting parameters
-rcParams['figure.figsize'] = 22, 10
-
-# set random seed
-random_seed = 20
-np.random.seed(random_seed)
 
 ### Personal consumption data ----
 
@@ -38,7 +9,7 @@ persCons.info()
 persCons.head()
 
 # change danish to english 
-persCons = persCons.rename(columns={"Mængde" : "Value", "Måleenhed" : "Measure"})
+persCons = persCons.rename(columns={"Mængde" : "kWh", "Måleenhed" : "Measure"})
 
 # add new column with hour of day and date
 persCons["Day"] = persCons["Til dato"].str[:2]
@@ -55,7 +26,7 @@ persCons["Hour"] = persCons["Hour"].astype(str) + ":00:00"
 persCons["Datetime"] = persCons["Date"].astype(str) + " " + persCons["Hour"].astype(str)
 
 # subset persCons to include Datetime and measurements in Kwh only
-persCons = persCons[["Datetime", "Value"]]
+persCons = persCons[["Datetime", "kWh"]]
 
 # Set Datetime as type datetime
 persCons['Datetime'] = pd.to_datetime(persCons['Datetime'], infer_datetime_format=True)
@@ -65,7 +36,14 @@ persCons.info()
 persCons.sort_values(by=['Datetime'], inplace=True, ascending=True)
 
 # drop potential duplicates
+# persCons.info()
+# pd.set_option("display.max_rows", None, "display.max_columns", None)
+# NAcheck = persCons['Datetime'].value_counts()
+# NAcheck = NAcheck.sort_values(by=['Datetime'], inplace=True, ascending=True)
+
 persCons = persCons.drop_duplicates(subset=["Datetime"])
+persCons.info()
+
 
 persCons = persCons.set_index('Datetime')
 
@@ -147,5 +125,9 @@ df.isna().sum()
 df.to_csv("weather-energy-data.csv")
 
 # test dataset
-test = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/weather-energy-data.csv')
+test = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv')
+test = test.iloc[:,1:]
+test.info()
+test.isna().sum
+
 
