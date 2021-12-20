@@ -29,7 +29,7 @@ rcParams['figure.figsize'] = 16, 6
 # Load data windows
 # df_input = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
 # Load data Mac
-df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
+df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
 
 # add time signal 
 timestamp_s = df_input.index.map(pd.Timestamp.timestamp)
@@ -60,6 +60,38 @@ df = df_input[['kWh', 'hour', 'Day sin']]
 df.index.freq = 'H'
 result = seasonal_decompose(df['kWh'])
 result.plot();
+
+# run ADF test
+# from statsmodels.tsa.stattools import adfuller
+
+# def adf_test(series,title=''):
+#     """
+#     Pass in a time series and an optional title, returns an ADF report
+#     """
+#     print(f'Augmented Dickey-Fuller Test: {title}')
+#     result = adfuller(series.dropna(),autolag='AIC') # .dropna() handles differenced data
+    
+#     labels = ['ADF test statistic','p-value','# lags used','# observations']
+#     out = pd.Series(result[0:4],index=labels)
+
+#     for key,val in result[4].items():
+#         out[f'critical value ({key})']=val
+        
+#     print(out.to_string())          # .to_string() removes the line "dtype: float64"
+    
+#     if result[1] <= 0.05:
+#         print("Strong evidence against the null hypothesis")
+#         print("Reject the null hypothesis")
+#         print("Data has no unit root and is stationary")
+#     else:
+#         print("Weak evidence against the null hypothesis")
+#         print("Fail to reject the null hypothesis")
+#         print("Data has a unit root and is non-stationary")
+        
+# adf_test(df['kWh'])
+
+# run Auto Arima to determine model
+auto_arima(df['kWh'],seasonal=True,m=24).summary()
 
 
 

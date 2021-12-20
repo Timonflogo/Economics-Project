@@ -52,16 +52,16 @@ persCons.info()
 
 persCons = persCons.set_index('Datetime')
 
-# # Add additional variables for seasonality
-# persCons['hour'] = persCons.index.hour
-# # add day of month column 0 = first day of the month
-# persCons['day_of_month'] = persCons.index.day
-# # add day of week column 0 = Monday
-# persCons['day_of_week'] = persCons.index.dayofweek
-# # add month column
-# persCons['month'] = persCons.index.month
-# # add weekend column
-# persCons['is_weekend'] = ((persCons.index.dayofweek) // 5 == 1).astype(float)
+# Add additional variables for seasonality
+persCons['hour'] = persCons.index.hour
+# add day of month column 0 = first day of the month
+persCons['day_of_month'] = persCons.index.day
+# add day of week column 0 = Monday
+persCons['day_of_week'] = persCons.index.dayofweek
+# add month column
+persCons['month'] = persCons.index.month
+# add weekend column
+persCons['is_weekend'] = ((persCons.index.dayofweek) // 5 == 1).astype(float)
 
 
 ### Meteorological Observation data ----
@@ -144,9 +144,9 @@ df = df['20181101':'20211101']
 df.to_csv("weather-energy-data-update.csv")
 
 # test dataset windows
-test = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv')
-test = test.iloc[:,1:]
-test.info()
-test.isna().sum
+# test = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv')
+# test = test.iloc[:,1:]
+# test.info()
+# test.isna().sum
 
 
