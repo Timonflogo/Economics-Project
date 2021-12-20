@@ -31,57 +31,7 @@ rcParams['figure.figsize'] = 16, 6
 # Load data Mac
 df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
 
-# plot heatmap
-# df_input = df_input.reset_index()
-# get correlations 
-df_input_corr = df_input.corr()
-# create mask
-mask = np.triu(np.ones_like(df_input_corr, dtype=np.bool))
-
-sns.heatmap(df_input_corr, mask=mask, annot=True, fmt=".2f", cmap='Blues',
-            vmin=-1, vmax=1, cbar_kws={"shrink": .8})
-
-
-# inspect time series 
-df_input['kWh'].iloc[-24:].plot(legend=True)
-
-
-# group by Hour 
-df_input.groupby(by='hour').mean()['kWh'].plot()
-
-# group by Day 
-df_input.groupby(by='day_of_week').mean()['kWh'].plot()
-
-# group by Day 
-df_input.groupby(by='day_of_month').mean()['kWh'].plot()
-
-# resample by day 
-df_input['kWh'].resample('D').mean().plot()
-df_input['kWh'].resample('D').mean().count()
-
-# resample by month 
-df_input['kWh'].resample('M').mean().plot()
-
-    
-# Density plot of target variabel
-fig, axes = plt.subplots(2)
-fig.suptitle('Outlier detection')
-
-ax1 = sns.distplot(df_input['kWh'], hist = False, kde = True,
-                 kde_kws = {'shade': True, 'linewidth': 3}, 
-                 ax = axes[0]
-                 )
-
-ax2 = sns.violinplot(x="day_of_week", y="kWh", data=df_input, ax = axes[1])
-
-# isolate for outliers 
-df_input['kWh'][df_input["kWh"] > 0.5].count()
-         
-outliers = df_input.index[df_input["kWh"] > 1]  
-         
-
-# create daily, weekly, and yearly signals 
-# Set datetime as index
+# add time signal 
 timestamp_s = df_input.index.map(pd.Timestamp.timestamp)
 day = 24*60*60
 week = 24*60*60*7
@@ -96,6 +46,20 @@ plt.plot(np.array(df_input['Day cos'])[:25])
 plt.xlabel('Time [h]')
 plt.title('Time of day signal')
 
+# import libraries for time series analysis
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.graphics.tsaplots import plot_acf,plot_pacf # for determining (p,q) orders
+from statsmodels.tsa.seasonal import seasonal_decompose      # for ETS Plots
+from pmdarima import auto_arima  
+
+# prepare data
+df = df_input[['kWh', 'hour', 'Day sin']]
+
+# decompose series
+# df.interpolate(inplace=True) 
+df.index.freq = 'H'
+result = seasonal_decompose(df['kWh'])
+result.plot();
 
 
 

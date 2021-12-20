@@ -1,10 +1,15 @@
 import pandas as pd
-
+import numpy as np
 
 ### Personal consumption data ----
 
-# load personal consumption dataset
+# load personal consumption dataset windows
 persCons = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/consumption-timon.csv')
+persCons.info()
+persCons.head()
+
+# load personal consumption dataset mac
+persCons = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/consumption-timon.csv')
 persCons.info()
 persCons.head()
 
@@ -47,22 +52,25 @@ persCons.info()
 
 persCons = persCons.set_index('Datetime')
 
-# Add additional variables for seasonality
-persCons['hour'] = persCons.index.hour
-# add day of month column 0 = first day of the month
-persCons['day_of_month'] = persCons.index.day
-# add day of week column 0 = Monday
-persCons['day_of_week'] = persCons.index.dayofweek
-# add month column
-persCons['month'] = persCons.index.month
-# add weekend column
-persCons['is_weekend'] = ((persCons.index.dayofweek) // 5 == 1).astype(float)
+# # Add additional variables for seasonality
+# persCons['hour'] = persCons.index.hour
+# # add day of month column 0 = first day of the month
+# persCons['day_of_month'] = persCons.index.day
+# # add day of week column 0 = Monday
+# persCons['day_of_week'] = persCons.index.dayofweek
+# # add month column
+# persCons['month'] = persCons.index.month
+# # add weekend column
+# persCons['is_weekend'] = ((persCons.index.dayofweek) // 5 == 1).astype(float)
 
 
 ### Meteorological Observation data ----
 
-# load metObs dataset
+# load metObs dataset windows
 metObs = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/Weather-Data.csv')
+
+# load metObs dataset mac
+metObs = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/Weather-Data.csv')
 
 # subset dataframe and only include values with high frequency
 # delete the 3 first observations as they are only 1/2 of an hour
@@ -106,7 +114,7 @@ date_df = pd.DataFrame()
 date_df = date_df.assign(Datetime = pd.date_range(start='08/1/2018', end='11/08/2021', freq="H"))
 
 # merge persCons into date_df
-df = pd.merge(date_df, persCons, on = "Datetime")
+df = pd.merge(date_df, persCons, how='left', on = "Datetime")
 
 df.isna().sum()
 
@@ -114,17 +122,28 @@ df.isna().sum()
 df = df.assign(Datetime2 = df.Datetime)
 df = df.set_index('Datetime2')
 
+df.isna().sum()
+
+check = df[df.isnull().any(axis=1)]
+
+df.interpolate(inplace=True) 
+
+check = pd.merge(check, df, how='left', on = "Datetime")
+
+# df = df.dropna()
+df.isna().sum()
+
+# merge weather data
 df = df.merge(metObs, how="outer", left_index=True, right_index=True)
 
-df.isna().sum()
+# isolate for dataperiod 11-2018 to 11/2021 to be modelled
+df = df['20181101':'20211101']
 
-df = df.dropna()
-df.isna().sum()
 
 # save df as file
-df.to_csv("weather-energy-data.csv")
+df.to_csv("weather-energy-data-update.csv")
 
-# test dataset
+# test dataset windows
 test = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv')
 test = test.iloc[:,1:]
 test.info()
