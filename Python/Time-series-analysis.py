@@ -31,6 +31,7 @@ rcParams['figure.figsize'] = 16,8
 # df_input = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
 # Load data Mac
 df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
+df_input = 
 
 # add time signal 
 timestamp_s = df_input.index.map(pd.Timestamp.timestamp)
@@ -42,15 +43,16 @@ df_input['Day sin'] = np.sin(timestamp_s * (2 * np.pi / day))
 df_input['Day cos'] = np.cos(timestamp_s * (2 * np.pi / day))
 
 
-plt.plot(np.array(df_input['Day sin'])[:25])
-plt.plot(np.array(df_input['Day cos'])[:25])
-plt.xlabel('Time [h]')
-plt.title('Time of day signal')
+# plt.plot(np.array(df_input['Day sin'])[:25])
+# plt.plot(np.array(df_input['Day cos'])[:25])
+# plt.xlabel('Time [h]')
+# plt.title('Time of day signal')
 
 # import libraries for time series analysis
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.graphics.tsaplots import plot_acf,plot_pacf # for determining (p,q) orders
-from statsmodels.tsa.seasonal import seasonal_decompose      # for ETS Plots
+from statsmodels.tsa.seasonal import seasonal_decompose 
+from statsmodels.tools.eval_measures import mse,rmse     # for ETS Plots
 from pmdarima import auto_arima  
 
 # prepare data
@@ -62,13 +64,23 @@ df = df_input[['kWh', 'hour', 'Day sin']]
 df_SD = df['20201101':'20211101']
 
 # resample by day
-df_SD = df.resample('D').mean()
+df_SD = df.resample('D').sum()
 
 # Reduce dataframe to include only single variable 
 df_SD = df_SD[['kWh']]
 df_SD.index.freq = 'D'
 
+df_SD.plot()
+
 df_SD['20210801':'20211101'].plot()
+
+# Subplots for series
+fig, axs = plt.subplots(3)
+fig.suptitle('kWh Series')
+axs[0].plot(df_input["kWh"])
+axs[1].plot(df_SD["kWh"])
+axs[2].plot(df[['kWh']].resample('M').sum())
+
 
 
 result = seasonal_decompose(df_SD['kWh'], period=7, model = "additive")
@@ -142,18 +154,10 @@ len(df_SD) == len(train) + len(test) # True
 
 # run Auto Arima to determine model without specified seasonality
 auto_arima(df_SD['kWh'],seasonal=True).summary()
-# SARIMAX(2, 0, 1)
-
-# Train Test set split - we want to forecast 1 month into the future so out test set should be at least one month 
-len(df_SD)
-df_SD[:987]
-# we will go with a 90-10 train-test split such that our test set represents 3 months worth of data
-train =  df_SD[:(round(0.9*len(df_SD)))]
-test = df_SD[round(0.9*len(df_SD)):]
-len(df_SD) == len(train) + len(test) # True
+# SARIMAX(1, 0, 3)
 
 # Fit SARIMA NO EXOGENOUS
-model1 = SARIMAX(train['kWh'], order=(2,0,1),enforce_invertibility=False)
+model1 = SARIMAX(train['kWh'], order=(1,0,3),enforce_invertibility=False)
 results1 = model1.fit()
 results1.summary()
 
@@ -161,24 +165,11 @@ results1.summary()
 start = len(train)
 end = len(train)+len(test)-1
 predictions1 = results1.predict(start=start, end=end, dynamic=False).rename("ARIMA(2,0,1) Predictions")
-
-# plot predictions
-title='Electricity Demand Forecast'
-ylabel='kWh'
-xlabel=''
-
-ax = test['kWh'].plot(legend=True,figsize=(12,6),title=title)
-predictions1.plot(legend=True)
-ax.autoscale(axis='x',tight=True)
-ax.set(xlabel=xlabel, ylabel=ylabel)
-for x in test.query('Holiday==1').index: 
-    ax.axvline(x=x, color='k', alpha = 0.3);
     
 # Evaluate model performance
-from statsmodels.tools.eval_measures import mse,rmse
-
-error1 = mse(test['total'], predictions1)
-error2 = rmse(test['total'], predictions1)
+from statsmodels.tools.eval_measures import mse,rmse 
+error1 = mse(test['kWh'], predictions1)
+error2 = rmse(test['kWh'], predictions1)
 
 print(f'ARIMA(2, 0, 1) MSE Error: {error1:11.10}')
 print(f'ARIMA(2, 0, 1) RMSE Error: {error2:11.10}')
@@ -188,18 +179,10 @@ print(f'ARIMA(2, 0, 1) RMSE Error: {error2:11.10}')
 
 # run Auto Arima to determine model
 auto_arima(df_SD['kWh'],seasonal=True,m=7).summary()
-# SARIMAX(2, 0, 2)x(1, 0, [1], 7) 
-
-# Train Test set split - we want to forecast 1 month into the future so out test set should be at least one month 
-len(df_SD)
-df_SD[:987]
-# we will go with a 90-10 train-test split such that our test set represents 3 months worth of data
-train =  df_SD[:(round(0.9*len(df_SD)))]
-test = df_SD[round(0.9*len(df_SD)):]
-len(df_SD) == len(train) + len(test) # True
+# SARIMAX(3, 0, 0)x(1, 0, [1], 7) 
 
 # Fit SARIMA NO EXOGENOUS
-model2 = SARIMAX(train['kWh'], order=(2,0,2), seasonal_order=(1,0,1,7),enforce_invertibility=False)
+model2 = SARIMAX(train['kWh'], order=(3,0,0), seasonal_order=(1,0,1,7),enforce_invertibility=False)
 results2 = model2.fit()
 results2.summary()
 
@@ -209,22 +192,20 @@ end = len(train)+len(test)-1
 predictions2 = results2.predict(start=start, end=end, dynamic=False).rename("SARIMA(2,0,2)(1,0,1,7) Predictions")
 
 # plot predictions
-title='Electricity Demand Forecast'
+title='Electricity Demand Forecast DAILY'
 ylabel='kWh'
 xlabel=''
 
 ax = test['kWh'].plot(legend=True,figsize=(12,6),title=title)
+predictions1.plot(legend=True)
 predictions2.plot(legend=True)
 ax.autoscale(axis='x',tight=True)
 ax.set(xlabel=xlabel, ylabel=ylabel)
-for x in test.query('Holiday==1').index: 
-    ax.axvline(x=x, color='k', alpha = 0.3);
-    
-# Evaluate model performance
-from statsmodels.tools.eval_measures import mse,rmse
 
-error1 = mse(test['total'], predictions2)
-error2 = rmse(test['total'], predictions2)
+
+# Evaluate model performance
+error3 = mse(test['kWh'], predictions2)
+error4 = rmse(test['kWh'], predictions2)
 
 print(f'SARIMA(1,0,0)(2,0,0,7) MSE Error: {error1:11.10}')
 print(f'SARIMA(1,0,0)(2,0,0,7) RMSE Error: {error2:11.10}')
@@ -234,16 +215,8 @@ print(f'SARIMA(1,0,0)(2,0,0,7) RMSE Error: {error2:11.10}')
 auto_arima(df_SD['kWh'],seasonal=True,m=7).summary()
 # SARIMAX(2, 0, 2)x(1, 0, [1], 7) 
 
-# Train Test set split - we want to forecast 1 month into the future so out test set should be at least one month 
-len(df_SD)
-df_SD[:987]
-# we will go with a 90-10 train-test split such that our test set represents 3 months worth of data
-train =  df_SD[:(round(0.9*len(df_SD)))]
-test = df_SD[round(0.9*len(df_SD)):]
-len(df_SD) == len(train) + len(test) # True
-
 # Fit SARIMA WITH EXOGENOUS
-model3 = SARIMAX(train['kWh'],exog=train['Holiday'],order=(2,0,2),seasonal_order=(1,0,1,7),enforce_invertibility=False)
+model3 = SARIMAX(train['kWh'],exog=train['Holiday'],order=(3,0,0),seasonal_order=(1,0,1,7),enforce_invertibility=False)
 results3 = model3.fit()
 results3.summary()
 
@@ -253,24 +226,19 @@ end = len(train)+len(test)-1
 predictions3 = results3.predict(start=start, end=end, dynamic=False).rename("SARIMAX(2,0,2)(1,0,1,7) Predictions")
 
 # plot predictions
-title='Electricity Demand Forecast'
+title='Electricity Demand Forecast DAILY'
 ylabel='kWh'
 xlabel=''
 
 ax = test['kWh'].plot(legend=True,figsize=(12,6),title=title)
 predictions1.plot(legend=True)
 predictions2.plot(legend=True)
-predictions3.plot(legend=True)
 ax.autoscale(axis='x',tight=True)
 ax.set(xlabel=xlabel, ylabel=ylabel)
-for x in test.query('Holiday==1').index: 
-    ax.axvline(x=x, color='k', alpha = 0.3);
 
 # Evaluate model performance
-from statsmodels.tools.eval_measures import mse,rmse
-
-error1 = mse(test['total'], predictions3)
-error2 = rmse(test['total'], predictions3)
+error5 = mse(test['total'], predictions3)
+error6 = rmse(test['total'], predictions3)
 
 print(f'SARIMAX(2,0,2)(1,0,1,7) MSE Error: {error1:11.10}')
 print(f'SARIMAX(2,0,2)(1,0,1,7) RMSE Error: {error2:11.10}')
@@ -291,47 +259,35 @@ train1 =  df[:(round(0.9*len(df)))]
 test1 = df[round(0.9*len(df)):]
 len(df) == len(train1) + len(test1) # True
 
-
-
-######################## SARIMAX(2, 0, 2)x(1, 0, [1], 7) 
-# run Auto Arima to determine model
-auto_arima(df_SD['kWh'],seasonal=True,m=7).summary()
-# SARIMAX(2, 0, 2)x(1, 0, [1], 7) 
-
 # Fit SARIMA WITH EXOGENOUS
-model3 = SARIMAX(train['kWh'],exog=train['Holiday'],order=(2,0,2),seasonal_order=(1,0,1,7),enforce_invertibility=False)
-results3 = model3.fit()
-results3.summary()
+model4 = SARIMAX(train1['kWh'],exog=train1['hour'],order=(2,0,0),seasonal_order=(2,0,0,24),enforce_invertibility=False)
+results4 = model4.fit()
+results4.summary()
 
 # obtain predicted results
-start = len(train)
-end = len(train)+len(test)-1
+start1 = len(train1)
+end1 = len(train1)+len(test1)-1
 
-exog_forecast = test[['Holiday']] 
-predictions3 = results3.predict(start=start, end=end, exog=exog_forecast).rename('SARIMAX(2,0,2)(1,0,1,7) Predictions')
+exog_forecast = test1[['hour']] 
+predictions4 = results4.predict(start=start1, end=end1, exog=exog_forecast).rename('SARIMAX(2,0,0)(2,0,0,24) Predictions')
 
 # plot predictions
-title='Electricity Demand Forecast'
+title='Electricity Demand Forecast HOURLY'
 ylabel='kWh'
 xlabel=''
 
-ax = test['kWh'].plot(legend=True,figsize=(12,6),title=title)
-predictions1.plot(legend=True)
-predictions2.plot(legend=True)
-predictions3.plot(legend=True)
+ax = test1['kWh'].plot(legend=True,figsize=(12,6),title=title)
+predictions4.plot(legend=True)
 ax.autoscale(axis='x',tight=True)
 ax.set(xlabel=xlabel, ylabel=ylabel)
-for x in test.query('Holiday==1').index: 
-    ax.axvline(x=x, color='k', alpha = 0.3);
+
 
 # Evaluate model performance
-from statsmodels.tools.eval_measures import mse,rmse
+error7 = mse(test1['total'], predictions4)
+error8 = rmse(test1['total'], predictions4)
 
-error1 = mse(test['total'], predictions3)
-error2 = rmse(test['total'], predictions3)
-
-print(f'SARIMAX(2,0,2)(1,0,1,7) MSE Error: {error1:11.10}')
-print(f'SARIMAX(2,0,2)(1,0,1,7) RMSE Error: {error2:11.10}')
+print(f'SARIMAX(2,0,2)(2,0,0,24) MSE Error: {error1:11.10}')
+print(f'SARIMAX(2,0,2)(2,0,0,24) RMSE Error: {error2:11.10}')
 
 
 

@@ -137,7 +137,7 @@ df.isna().sum()
 df = df.merge(metObs, how="outer", left_index=True, right_index=True)
 
 # isolate for dataperiod 11-2018 to 11/2021 to be modelled
-df = df['20181101':'20211101']
+df = df['20181101':'20211031']
 
 
 # save df as file

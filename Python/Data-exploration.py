@@ -91,10 +91,10 @@ df_input['Day sin'] = np.sin(timestamp_s * (2 * np.pi / day))
 df_input['Day cos'] = np.cos(timestamp_s * (2 * np.pi / day))
 
 
-plt.plot(np.array(df_input['Day sin'])[:25])
-plt.plot(np.array(df_input['Day cos'])[:25])
-plt.xlabel('Time [h]')
-plt.title('Time of day signal')
+# plt.plot(np.array(df_input['Day sin'])[:25])
+# plt.plot(np.array(df_input['Day cos'])[:25])
+# plt.xlabel('Time [h]')
+# plt.title('Time of day signal')
 
 
 
