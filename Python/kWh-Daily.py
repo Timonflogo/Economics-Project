@@ -24,7 +24,7 @@ register_matplotlib_converters()
 sns.set(style='whitegrid', palette='muted', font_scale=1)
 
 # set plotting parameters
-rcParams['figure.figsize'] = 16, 8
+rcParams['figure.figsize'] = 16, 6
 
 # set random seed
 random_seed = 20
@@ -81,6 +81,279 @@ df_SD.index.freq = 'D'
 
 # dataframe for univariate 
 df_input = df_SD
+
+################ SARIMA Hourly forecasts  
+# import libraries for time series analysis
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.graphics.tsaplots import plot_acf,plot_pacf # for determining (p,q) orders
+from statsmodels.tsa.seasonal import seasonal_decompose 
+from statsmodels.tools.eval_measures import mse,rmse     # for ETS Plots
+from pmdarima import auto_arima  
+
+# dataframe for SARIMAX
+# resample by day
+df_SD = df.resample('D').sum()
+
+# Reduce dataframe to include only single variable 
+df_SD = df_SD[['kWh']]
+df_SD.index.freq = 'D'
+
+# run ADF test
+from statsmodels.tsa.stattools import adfuller
+
+def adf_test(series,title=''):
+    """
+    Pass in a time series and an optional title, returns an ADF report
+    """
+    print(f'Augmented Dickey-Fuller Test: {title}')
+    result = adfuller(series.dropna(),autolag='AIC') # .dropna() handles differenced data
+    
+    labels = ['ADF test statistic','p-value','# lags used','# observations']
+    out = pd.Series(result[0:4],index=labels)
+
+    for key,val in result[4].items():
+        out[f'critical value ({key})']=val
+        
+    print(out.to_string())          # .to_string() removes the line "dtype: float64"
+    
+    if result[1] <= 0.05:
+        print("Strong evidence against the null hypothesis")
+        print("Reject the null hypothesis")
+        print("Data has no unit root and is stationary")
+    else:
+        print("Weak evidence against the null hypothesis")
+        print("Fail to reject the null hypothesis")
+        print("Data has a unit root and is non-stationary")
+        
+adf_test(df['kWh'])
+
+df = df_SD
+
+# decompose series
+result = seasonal_decompose(df['kWh'], model = "additive")
+result.plot({'figure.figsize': (16,9)});
+result.seasonal['20210801':'20211101'].plot() 
+
+# add weekly dummy variables 
+df['day_of_week'] = df.index.dayofweek
+df_dummies = pd.get_dummies(df['day_of_week'])
+df = pd.merge(df, df_dummies, how='left', left_index=True, right_index=True)
+df.drop('day_of_week', inplace=True, axis=1)
+
+
+# Train Test set split - we want to forecast 7 Days into the future so out test set should be at least one month 
+len(df)
+# we will go with a train-test split such that our test set represents 168 Hours worth of data
+train1 =  df[:len(df)-7]
+test1 = df[len(df)-7:]
+len(df) == len(train1) + len(test1) # True
+
+# forecast start and end
+# obtain predicted results
+start1 = len(train1)
+end1 = len(train1)+len(test1)-1
+
+# ------- WITHOUT Exogenous
+
+# run Auto Arima to determine model without specified seasonality
+#auto_arima(df['kWh'],seasonal=False).summary()
+# SARIMAX(2, 0, 2)
+
+# run Auto Arima to determine model without specified seasonality
+#auto_arima(df['kWh'],seasonal=True,m=7).summary()
+# SARIMAX(3, 0, 0)x(1, 0, [1], 7) 
+
+df.plot()
+
+# Fit ARIMA WITHOUT EXOGENOUS
+model = SARIMAX(train1['kWh'],order=(2,0,2),enforce_invertibility=False)
+results = model.fit()
+results.summary()
+
+# predict
+predictions = results.predict(start=start1, end=end1).rename('ARIMA(2,0,2) Predictions')
+
+# Fit ARIMA WITH EXOGENOUS
+exog_train = train1.iloc[:,1:]
+exog_forecast = test1.iloc[:,1:]
+model3 = SARIMAX(train1['kWh'],exog=exog_train,order=(3,0,0),seasonal_order=(1,0,1,7),enforce_invertibility=False)
+results3 = model3.fit()
+results3.summary()
+
+# predict
+predictions3 = results3.predict(start=start1, end=end1, exog=exog_forecast).rename('ARIMAX(2,0,2)Predictions')
+
+
+# Fit SARIMA WITHOUT EXOGENOUS
+model1 = SARIMAX(train1['kWh'],order=(3,0,0),seasonal_order=(1,0,1,7),enforce_invertibility=False)
+results1 = model1.fit()
+results1.summary()
+
+# predict
+predictions1 = results1.predict(start=start1, end=end1).rename('SARIMA(3,0,0)(1,0,1,7) Predictions')
+
+# Fit SARIMA WITH EXOGENOUS
+exog_train = train1.iloc[:,1:]
+exog_forecast = test1.iloc[:,1:]
+model2 = SARIMAX(train1['kWh'],exog=exog_train,order=(3,0,0),seasonal_order=(1,0,1,7),enforce_invertibility=False)
+results2 = model1.fit()
+results2.summary()
+
+# predict
+predictions2 = results1.predict(start=start1, end=end1, exog=exog_forecast).rename('SARIMA(3,0,0)(1,0,1,7) Predictions')
+
+
+
+# plot predictions
+title='Electricity Demand Forecast Daily'
+ylabel='kWh'
+xlabel=''
+
+ax = test1['kWh'].plot(legend=True,figsize=(12,4),title=title)
+#predictions.plot(legend=True)
+predictions1.plot(legend=True)
+ax.autoscale(axis='x',tight=True)
+ax.set(xlabel=xlabel, ylabel=ylabel)
+
+
+# Evaluate model performance
+error1 = mse(test1['kWh'], predictions)
+error2 = rmse(test1['kWh'], predictions)
+error3 = mse(test1['kWh'], predictions1)
+error4 = rmse(test1['kWh'], predictions1)
+error5 = mse(test1['kWh'], predictions2)
+error6 = rmse(test1['kWh'], predictions2)
+error7 = mse(test1['kWh'], predictions3)
+error8 = rmse(test1['kWh'], predictions3)
+
+# MAPE
+from sklearn.metrics import mean_absolute_percentage_error as maperror
+error9 = maperror(test1['kWh'], predictions)
+error10 = maperror(test1['kWh'], predictions1)
+
+print(f'ARIMA(2,0,2) MSE Error: {error1:11.10}')
+print(f'ARIMA(2,0,2) RMSE Error: {error2:11.10}')
+print(f'ARIMA(2,0,2) MSE Error: {error7:11.10}')
+print(f'ARIMA(2,0,2) RMSE Error: {error8:11.10}')
+print(f'SARIMA(3,0,0)(1,0,1,7) MSE Error: {error3:11.10}')
+print(f'SARIMA(3,0,0)(1,0,1,7) RMSE Error: {error4:11.10}')
+print(f'SARIMAX(3,0,0)(1,0,1,7) MSE Error: {error5:11.10}')
+print(f'SARIMAX(3,0,0)(1,0,1,7) RMSE Error: {error6:11.10}')
+
+
+ 
+  
+# ================================== Multi Step Autoregressive LSTM forecasting model ========================
+
+# import libraries for Deep Learning
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import LSTM
+
+
+# prepare data
+df = df_input[['kWh']]
+
+# Train Test set split - we want to forecast 1 month into the future so out test set should be at least one month 
+len(df)
+# we will go with a 90-10 train-test split such that our test set represents 3 months worth of data
+train =  df[:len(df)-7]
+test = df[len(df)-7:]
+len(df) == len(train) + len(test)
+
+# Scale data
+scaler = MinMaxScaler()
+
+# IGNORE WARNING ITS JUST CONVERTING TO FLOATS
+# WE ONLY FIT TO TRAININ DATA, OTHERWISE WE ARE CHEATING ASSUMING INFO ABOUT TEST SET
+scaler.fit(train)
+scaled_train = scaler.transform(train)
+scaled_test = scaler.transform(test)
+# scaled_train = train
+# scaled_test = test
+
+
+# Let's define to get 168 Days back wbich represents one week and then predict the next week out
+n_input = 7
+n_features = 1
+generator = TimeseriesGenerator(scaled_train, scaled_train, length=n_input, batch_size=10)
+
+# Check Generated time series object 
+len(scaled_train)
+len(generator) # n_input = 2
+scaled_train
+X,y = generator[0]
+print(f'Given the Array: \n{X.flatten()}')
+print(f'Predict this y: \n {y}')
+
+# DEFINE THE MODEL 
+# define model
+model = Sequential()
+model.add(LSTM(16, activation='relu', input_shape=(n_input, n_features)))
+model.add(Dense(1))
+# comile model
+model.compile(optimizer='adam', loss='mse')
+
+# get model summary
+model.summary()
+
+# fit model
+model.fit_generator(generator,epochs=10, shuffle=False)
+
+# model performance
+model.history.history.keys()
+loss_per_epoch = model.history.history['loss']
+plt.plot(range(len(loss_per_epoch)),loss_per_epoch)
+
+# Evaluate on Test Data
+# first_eval_batch = scaled_train[-24:]
+# first_eval_batch
+# first_eval_batch = first_eval_batch.reshape((1, n_input, n_features))
+# model.predict(first_eval_batch)
+# scaled_test[0]
+
+# LOOP to get predictions for entire test set
+test_predictions = []
+
+first_eval_batch = scaled_train[-n_input:]
+current_batch = first_eval_batch.reshape((1, n_input, n_features))
+
+for i in range(len(test)):
+    
+    # get prediction 1 time stamp ahead ([0] is for grabbing just the number instead of [array])
+    current_pred = model.predict(current_batch)[0]
+    
+    # store prediction
+    test_predictions.append(current_pred) 
+    
+    # update batch to now include prediction and drop first value
+    current_batch = np.append(current_batch[:,1:,:],[[current_pred]],axis=1)
+    
+test_predictions
+
+# INverse transform to compare to actual data
+true_predictions = scaler.inverse_transform(test_predictions)
+true_predictions
+
+# IGNORE WARNINGS
+test['Predictions'] = true_predictions
+
+# plot predictions 
+test.plot(figsize=(12,8))
+
+# model evaluation 
+from statsmodels.tools.eval_measures import mse,rmse 
+error = mse(test['kWh'], test['Predictions'])
+error
+
+
+
+
+
+
+
 
 # ================================== Multi Step single shot forecasting models ========================
 
@@ -461,3 +734,5 @@ _ = plt.legend()
 
 for name, value in multi_performance.items():
   print(f'{name:8s}: {value[1]:0.4f}')
+  
+ 
