@@ -100,7 +100,7 @@ df_H_decompose = df_H['20211001':'20211031']
 
 # run auto arima on hourly data SARIMA
 # auto_arima(df_H_auto['kWh'],seasonal=True,m=24).summary()
-# SARIMAX(2, 0, 0)x(2, 0, 0, 24) 
+SARIMAX(2, 0, 0)x(2, 0, 0, 24) 
 
 # run ADF test
 from statsmodels.tsa.stattools import adfuller
