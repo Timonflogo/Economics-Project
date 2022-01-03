@@ -30,12 +30,17 @@ rcParams['figure.figsize'] = 16, 8
 random_seed = 20
 np.random.seed(random_seed)
 
-# load dataset
-df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
+# load dataset Mac
+# df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
+# df_input = df_input['20181101':'20211031']
+
+# load dataset Windows
+df_input = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
 df_input = df_input['20181101':'20211031']
 
+
 # prepare data
-df = df_input[['kWh']]
+# df = df_input[['kWh']]
 
 df_input.isna().sum()
 df_input.fillna(method='ffill', inplace = True)
@@ -72,7 +77,7 @@ predictions = model.predict(X)
 model.summary()
 
 # dataframe for SARIMAX
-df_input = df
+# df_input = df
 
 ################ SARIMA Hourly forecasts  
 # import libraries for time series analysis
@@ -88,8 +93,10 @@ df_H = df_input[['kWh', 'hour']]
 # df_H['hour'] = df_H['hour'].astype("category")
 
 # add weekly dummy variables 
-df_H_dummies = pd.get_dummies(df['hour'])
-df_H = pd.merge(df_H df_H_dummies, how='left', left_index=True, right_index=True)
+df_H_dummies = pd.get_dummies(df_H['hour'])
+df_H_dummies.drop(df_H_dummies.iloc[:,2:26], inplace=True, axis=1)
+df_H = pd.merge(df_H, df_H_dummies, how='left', left_index=True, right_index=True)
+df_H.drop('hour', inplace=True, axis=1)
 
 # reduce series load to enable auto.arima 
 df_H_decompose = df_H['20211001':'20211031']
@@ -100,7 +107,7 @@ df_H_decompose = df_H['20211001':'20211031']
 
 # run auto arima on hourly data SARIMA
 # auto_arima(df_H_auto['kWh'],seasonal=True,m=24).summary()
-SARIMAX(2, 0, 0)x(2, 0, 0, 24) 
+# SARIMAX(2, 0, 0)x(2, 0, 0, 24) 
 
 # run ADF test
 from statsmodels.tsa.stattools import adfuller
@@ -146,11 +153,12 @@ start1 = len(train1)
 end1 = len(train1)+len(test1)-1
 
 # vector of exogenous variable
-exog_forecast = test1[['hour']] 
+exog_train = train1.iloc[:,1:] 
+exog_forecast = test1.iloc[:,1:] 
 
 # ------- WITHOUT Exogenous
 
-# Fit SARIMA WITHOUT EXOGENOUS
+# Fit ARIMA WITHOUT EXOGENOUS
 model = SARIMAX(train1['kWh'],order=(2,0,0),enforce_invertibility=False)
 results = model.fit()
 results.summary()
@@ -169,8 +177,8 @@ predictions1 = results1.predict(start=start1, end=end1).rename('SARIMA(2,0,0)(2,
 
 # ------- WITH Exogenous
 
-# Fit SARIMA WITH EXOGENOUS
-model2 = SARIMAX(train1['kWh'],exog=train1['hour'],order=(2,0,0),enforce_invertibility=False)
+# Fit ARIMAX WITH EXOGENOUS
+model2 = SARIMAX(train1['kWh'],exog=exog_train,order=(2,0,0),enforce_invertibility=False)
 results2 = model2.fit()
 results2.summary()
 
@@ -178,7 +186,7 @@ results2.summary()
 predictions2 = results2.predict(start=start1, end=end1, exog=exog_forecast).rename('ARIMAX(2,0,0) Predictions')
 
 # Fit SARIMA WITH EXOGENOUS
-model3 = SARIMAX(train1['kWh'],exog=train1['hour'],order=(2,0,0),seasonal_order=(2,0,0,24),enforce_invertibility=False)
+model3 = SARIMAX(train1['kWh'],exog=exog_train,order=(2,0,0),seasonal_order=(2,0,0,24),enforce_invertibility=False)
 results3 = model3.fit()
 results3.summary()
 
@@ -286,7 +294,7 @@ model.compile(optimizer='adam', loss='mse')
 model.summary()
 
 # fit model
-model.fit_generator(generator,epochs=10, shuffle=False)
+model.fit_generator(generator,epochs=30, shuffle=False)
 
 # model performance
 model.history.history.keys()
@@ -324,33 +332,50 @@ true_predictions = scaler.inverse_transform(test_predictions)
 true_predictions
 
 # IGNORE WARNINGS
-test['Predictions'] = true_predictions
+test['LSTM Predictions'] = true_predictions
 
 # plot predictions 
 test.plot(figsize=(12,8))
 
-# model evaluation 
-from statsmodels.tools.eval_measures import mse,rmse 
-error13 = mse(test['kWh'], test['Predictions'])
-error14 = rmse(test['kWh'], test['Predictions'])
-error15 = maperror(test['kWh'], test['Predictions'])
+
+# plot predictions
+title='Electricity Demand Forecast HOURLY'
+ylabel='kWh'
+xlabel=''
+
+ax = test1['kWh'].plot(legend=True,figsize=(12,4),title=title)
+predictions.plot(legend=True)
+predictions2.plot(legend=True)
+predictions1.plot(legend=True)
+predictions3.plot(legend=True)
+test['LSTM Predictions'].plot(legend=True)
+ax.autoscale(axis='x',tight=True)
+ax.set(xlabel=xlabel, ylabel=ylabel)
+
+
+# Evaluate model performance
+error1 = mse(test1['kWh'], predictions)
+error2 = rmse(test1['kWh'], predictions)
+error3 = mse(test1['kWh'], predictions1)
+error4 = rmse(test1['kWh'], predictions1)
+error5 = mse(test1['kWh'], predictions2)
+error6 = rmse(test1['kWh'], predictions2)
+error7 = mse(test1['kWh'], predictions3)
+error8 = rmse(test1['kWh'], predictions3)
+error9 = mse(test['kWh'], test['LSTM Predictions'])
+error10 = rmse(test['kWh'], test['LSTM Predictions'])
+
 
 print(f'ARIMA(2,0,0) MSE Error: {error1:11.10}')
 print(f'ARIMA(2,0,0) RMSE Error: {error2:11.10}')
-print(f'ARIMA(2,0,0) MAPE Error: {error9:11.10}')
-print(f'SARIMA(2,0,2)(2,0,0,24) MSE Error: {error3:11.10}')
-print(f'SARIMA(2,0,2)(2,0,0,24) RMSE Error: {error4:11.10}')
-print(f'SARIMA(2,0,2)(2,0,0,24) MAPE Error: {error10:11.10}')
 print(f'ARIMAX(2,0,0)  MSE Error: {error5:11.10}')
 print(f'ARIMAX(2,0,0)  RMSE Error: {error6:11.10}')
-print(f'ARIMAX(2,0,0)  MAPE Error: {error11:11.10}')
+print(f'SARIMA(2,0,2)(2,0,0,24) MSE Error: {error3:11.10}')
+print(f'SARIMA(2,0,2)(2,0,0,24) RMSE Error: {error4:11.10}')
 print(f'SARIMAX(2,0,2)(2,0,0,24) MSE Error: {error7:11.10}')
 print(f'SARIMAX(2,0,2)(2,0,0,24) RMSE Error: {error8:11.10}')
-print(f'SARIMAX(2,0,2)(2,0,0,24) MAPE Error: {error12:11.10}')
-print(f'SARIMAX(2,0,2)(2,0,0,24) MSE Error: {error7:11.10}')
-print(f'SARIMAX(2,0,2)(2,0,0,24) RMSE Error: {error8:11.10}')
-print(f'SARIMAX(2,0,2)(2,0,0,24) MAPE Error: {error12:11.10}')
-
+print(f'LSTM MSE Error: {error9:11.10}')
+print(f'LSTM RMSE Error: {error10:11.10}')
 
 
 

@@ -30,8 +30,12 @@ rcParams['figure.figsize'] = 16, 6
 random_seed = 20
 np.random.seed(random_seed)
 
-# load dataset
-df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
+# load dataset Mac
+# df_input = pd.read_csv('/Users/timongodt/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
+# df_input = df_input['20181101':'20211031']
+
+# load dataset Windows
+df_input = pd.read_csv('C:/Users/timon/Documents/GitHub/Economics-Project/Data/weather-energy-data-update.csv', index_col="Datetime", parse_dates=True).iloc[:,1:]
 df_input = df_input['20181101':'20211031']
 
 # prepare data
@@ -125,7 +129,7 @@ def adf_test(series,title=''):
         print("Fail to reject the null hypothesis")
         print("Data has a unit root and is non-stationary")
         
-adf_test(df['kWh'])
+adf_test(df_SD['kWh'])
 
 df = df_SD
 
@@ -144,8 +148,8 @@ df.drop('day_of_week', inplace=True, axis=1)
 # Train Test set split - we want to forecast 7 Days into the future so out test set should be at least one month 
 len(df)
 # we will go with a train-test split such that our test set represents 168 Hours worth of data
-train1 =  df[:len(df)-7]
-test1 = df[len(df)-7:]
+train1 =  df[:len(df)-30]
+test1 = df[len(df)-30:]
 len(df) == len(train1) + len(test1) # True
 
 # forecast start and end
@@ -176,7 +180,7 @@ predictions = results.predict(start=start1, end=end1).rename('ARIMA(2,0,2) Predi
 # Fit ARIMA WITH EXOGENOUS
 exog_train = train1.iloc[:,1:]
 exog_forecast = test1.iloc[:,1:]
-model3 = SARIMAX(train1['kWh'],exog=exog_train,order=(3,0,0),seasonal_order=(1,0,1,7),enforce_invertibility=False)
+model3 = SARIMAX(train1['kWh'],exog=exog_train,order=(2,0,0),enforce_invertibility=False)
 results3 = model3.fit()
 results3.summary()
 
@@ -196,11 +200,11 @@ predictions1 = results1.predict(start=start1, end=end1).rename('SARIMA(3,0,0)(1,
 exog_train = train1.iloc[:,1:]
 exog_forecast = test1.iloc[:,1:]
 model2 = SARIMAX(train1['kWh'],exog=exog_train,order=(3,0,0),seasonal_order=(1,0,1,7),enforce_invertibility=False)
-results2 = model1.fit()
+results2 = model2.fit()
 results2.summary()
 
 # predict
-predictions2 = results1.predict(start=start1, end=end1, exog=exog_forecast).rename('SARIMA(3,0,0)(1,0,1,7) Predictions')
+predictions2 = results2.predict(start=start1, end=end1, exog=exog_forecast).rename('SARIMAX(3,0,0)(1,0,1,7) Predictions')
 
 
 
@@ -210,8 +214,10 @@ ylabel='kWh'
 xlabel=''
 
 ax = test1['kWh'].plot(legend=True,figsize=(12,4),title=title)
-#predictions.plot(legend=True)
+predictions.plot(legend=True)
+predictions3.plot(legend=True)
 predictions1.plot(legend=True)
+predictions2.plot(legend=True)
 ax.autoscale(axis='x',tight=True)
 ax.set(xlabel=xlabel, ylabel=ylabel)
 
@@ -254,13 +260,13 @@ from tensorflow.keras.layers import LSTM
 
 
 # prepare data
-df = df_input[['kWh']]
+df = df[['kWh']]
 
 # Train Test set split - we want to forecast 1 month into the future so out test set should be at least one month 
 len(df)
 # we will go with a 90-10 train-test split such that our test set represents 3 months worth of data
-train =  df[:len(df)-7]
-test = df[len(df)-7:]
+train =  df[:len(df)-30]
+test = df[len(df)-30:]
 len(df) == len(train) + len(test)
 
 # Scale data
@@ -276,7 +282,7 @@ scaled_test = scaler.transform(test)
 
 
 # Let's define to get 168 Days back wbich represents one week and then predict the next week out
-n_input = 7
+n_input = 30
 n_features = 1
 generator = TimeseriesGenerator(scaled_train, scaled_train, length=n_input, batch_size=10)
 
@@ -291,7 +297,7 @@ print(f'Predict this y: \n {y}')
 # DEFINE THE MODEL 
 # define model
 model = Sequential()
-model.add(LSTM(16, activation='relu', input_shape=(n_input, n_features)))
+model.add(LSTM(8, activation='relu', input_shape=(n_input, n_features)))
 model.add(Dense(1))
 # comile model
 model.compile(optimizer='adam', loss='mse')
@@ -300,7 +306,7 @@ model.compile(optimizer='adam', loss='mse')
 model.summary()
 
 # fit model
-model.fit_generator(generator,epochs=10, shuffle=False)
+model.fit_generator(generator,epochs=100, shuffle=False)
 
 # model performance
 model.history.history.keys()
@@ -338,7 +344,7 @@ true_predictions = scaler.inverse_transform(test_predictions)
 true_predictions
 
 # IGNORE WARNINGS
-test['Predictions'] = true_predictions
+test['LSTM Predictions'] = true_predictions
 
 # plot predictions 
 test.plot(figsize=(12,8))
@@ -347,6 +353,49 @@ test.plot(figsize=(12,8))
 from statsmodels.tools.eval_measures import mse,rmse 
 error = mse(test['kWh'], test['Predictions'])
 error
+
+# plot predictions
+title='Electricity Demand Forecast Daily'
+ylabel='kWh'
+xlabel=''
+
+ax = test1['kWh'].plot(legend=True,figsize=(12,4))
+predictions.plot(legend=True)
+predictions3.plot(legend=True)
+predictions1.plot(legend=True)
+predictions2.plot(legend=True)
+test['LSTM Predictions'].plot(legend=True)
+ax.legend(bbox_to_anchor =(0.65, 1.25))
+ax.autoscale(axis='x',tight=True)
+ax.set(xlabel=xlabel, ylabel=ylabel)
+
+
+# Evaluate model performance
+error1 = mse(test1['kWh'], predictions)
+error2 = rmse(test1['kWh'], predictions)
+error3 = mse(test1['kWh'], predictions1)
+error4 = rmse(test1['kWh'], predictions1)
+error5 = mse(test1['kWh'], predictions2)
+error6 = rmse(test1['kWh'], predictions2)
+error7 = mse(test1['kWh'], predictions3)
+error8 = rmse(test1['kWh'], predictions3)
+error9 = mse(test['kWh'], test['Predictions'])
+error10 = rmse(test['kWh'], test['Predictions'])
+# MAPE
+from sklearn.metrics import mean_absolute_percentage_error as maperror
+# error9 = maperror(test1['kWh'], predictions)
+# error10 = maperror(test1['kWh'], predictions1)
+
+print(f'ARIMA(2,0,2) MSE Error: {error1:11.10}')
+print(f'ARIMA(2,0,2) RMSE Error: {error2:11.10}')
+print(f'ARIMAX(2,0,2) MSE Error: {error7:11.10}')
+print(f'ARIMAX(2,0,2) RMSE Error: {error8:11.10}')
+print(f'SARIMA(3,0,0)(1,0,1,7) MSE Error: {error3:11.10}')
+print(f'SARIMA(3,0,0)(1,0,1,7) RMSE Error: {error4:11.10}')
+print(f'SARIMAX(3,0,0)(1,0,1,7) MSE Error: {error5:11.10}')
+print(f'SARIMAX(3,0,0)(1,0,1,7) RMSE Error: {error6:11.10}')
+print(f'LSTM MSE Error: {error9:11.10}')
+print(f'LSTM RMSE Error: {error10:11.10}')
 
 
 

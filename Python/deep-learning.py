@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import numpy as np
 import pandas as pd
-import holidays
+# import holidays
 import statsmodels.api as sm
 from pandas.plotting import register_matplotlib_converters
 import seaborn as sns
-import tensorflow as tf
+# import tensorflow as tf
 # Setup environment
 mpl.rcParams['figure.figsize'] = (8, 6)
 mpl.rcParams['axes.grid'] = False
