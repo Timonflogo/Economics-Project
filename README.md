@@ -1,14 +1,14 @@
 
 # Economics-Project
-Student: Timon Florian Godt
+Student: Timon Florian Godt<br>
 School of Business and Social Sciences, Aarhus University
 
 ## Used Methods in Python Code Files
-ARIMA(X)
-SARIMA(X) 
-LSTM
-CONV1D
-DEEPNN
+ARIMA(X)<br>
+SARIMA(X)<br>
+LSTM<br>
+CONV1D<br>
+DEEPNN<br>
 
 ## Abstract
 Europe is headed towards a major energy crisis which is very likely to affect Industries, Businesses, and certainly also households, as energy prices are rising and temperatures are falling.
