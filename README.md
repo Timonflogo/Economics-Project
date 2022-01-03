@@ -1,10 +1,11 @@
+
 # Economics-Project
 Student: Timon Florian Godt
 School of Business and Social Sciences, Aarhus University
 
 ## Used Methods in Python Code Files
 ARIMA(X)
-SARIMA(X)
+SARIMA(X) 
 LSTM
 CONV1D
 DEEPNN
@@ -33,7 +34,7 @@ which increases the difficulty of establishing a seasonal
 daily daily electricity consumption pattern, as well as
 periods of vacation, illness, or other reasons of absence,
 where no consumption occurs, all of which potentially
-distort the relationship with the weather.
+distort the relationship with the weather. <br>
 The best performing algorithms on the hourly and
 daily forecasting challenges with a forecasting horizon of
 168 and 30 observations, respectively, was a simple ARIMAX model which is a ARIMA Regression model, using
@@ -45,21 +46,21 @@ in a SARIMA specification signaled a significant decay of
 the seasonality after only a couple of observations. In the
 monthly forecasting of the kWh series with a forecasting
 horizon of 12, the ARIMAX model performed worse than
-its more complex variants SARIMA and SARIMAX.
+its more complex variants SARIMA and SARIMAX. <br>
 In all cases the LSTM model was the most difficult
 and computationally expensive to train, with training
 times that took far more time than the less complex models, and performed worse in terms of RMSE on the test
 set predictions. However, this does not invalidate the
 application of the LSTM on these problems. Previous
 works have shown that correctly carried out hyperparameter tuning can significantly increase the performance of
-LSTM models on similar data.
+LSTM models on similar data. <br>
 In general, forecasting a single residential electricity
 consumption series is rather difficult to achieve with low
 error, as most achieved forecasts on the test set were significantly over-underestimating the actual series.. However in some cases, the seasonal pattern was able to be
 modeled by the ARIMAX, SARIMAX, and LSTM while
 in other cases such as the monthly forecasting in section
 4.3 the general decreasing trend from winter months to
-summer months was detected.
+summer months was detected. <br>
 This paper could be used by other researchers and individuals to gain insights into the performance related to
 multiple advanced time series methods on similar data
 and it is believed to spark further research interests
@@ -68,4 +69,5 @@ it is believed to significantly improve the forecasting performance of the so fa
 SARIMAX models. Furthermore, the forecasts achieved
 could be paired with auxiliary forecasts for the price of
 electricity to calculate the the future costs that households will have to carry to keep their lights on, therefore,
-enabling them to
+enabling them to reduce uncertainty about their future
+cost of living
